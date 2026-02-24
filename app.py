@@ -102,8 +102,9 @@ async def _close_browser():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start browser on app startup, close on shutdown."""
-    await _ensure_browser()
+    """Start browser in background on startup so /healthz responds immediately."""
+    # Launch browser in background — don't block startup
+    asyncio.create_task(_ensure_browser())
     yield
     await _close_browser()
 
@@ -230,7 +231,8 @@ async def _browse(req: BrowseRequest) -> dict:
 # ── Endpoints ──────────────────────────────────────────────────────────────────
 @app.get("/healthz")
 async def healthz():
-    return {"ok": True}
+    """Always returns 200 immediately — browser may still be warming up."""
+    return {"ok": True, "browser_ready": _browser is not None and _browser.is_connected()}
 
 
 @app.get("/status")
